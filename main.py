@@ -1,10 +1,3 @@
-"""
-Application entry point.
-
-Creates all required objects and injects dependencies
-into the EbayTracker before starting the tracking loop.
-"""
-
 from src.config import Config
 from src.ebay_client import EbayClient
 from src.discord_notifier import DiscordNotifier
@@ -13,10 +6,6 @@ from src.tracker import EbayTracker
 
 
 def main():
-    """
-    Creates application services and starts tracking.
-    """
-
     config = Config()
 
     ebay_client = EbayClient(
@@ -36,8 +25,7 @@ def main():
         ebay_client=ebay_client,
         notifier=notifier,
         seen_items_manager=seen_items_manager,
-        search_query=config.search_query,
-        max_price=config.max_price,
+        search_categories=config.search_categories,
         check_every_seconds=config.check_every_seconds,
     )
 

@@ -1,27 +1,30 @@
-"""
-Responsible for sending alerts to Discord.
-"""
-
 import requests
 
 
 class DiscordNotifier:
-
     def __init__(self, webhook_url):
         self.webhook_url = webhook_url
 
-    def send_listing(self, listing):
-        """
-        Sends a listing notification
-        to Discord using an embed.
-        """
+    def send_listing(self, listing, category):
+        specs = listing.specs
 
         embed = {
             "title": listing.title[:256],
             "url": listing.url,
-            "description":
-            f"**Price:** £{listing.price}",
+            "description": (
+                f"**Category:** {category.name}\n"
+                f"**Price:** £{listing.price}\n"
+                f"**Max Price:** £{category.max_price}\n\n"
+                f"**CPU:** {specs['cpu']}\n"
+                f"**RAM:** {specs['ram']}\n"
+                f"**Storage:** {specs['storage']}\n"
+                f"**Year:** {specs['year']}\n"
+                f"**Size:** {specs['screen_size']}"
+            ),
             "color": 5814783,
+            "footer": {
+                "text": "eBay MacBook Tracker"
+            },
         }
 
         if listing.image_url:
@@ -30,12 +33,9 @@ class DiscordNotifier:
             }
 
         payload = {
-            "content":
-            "🚨 New eBay listing found!",
+            "content": f"🚨 New {category.name} listing found!",
             "embeds": [embed],
         }
 
-        requests.post(
-            self.webhook_url,
-            json=payload,
-        ).raise_for_status()
+        response = requests.post(self.webhook_url, json=payload)
+        response.raise_for_status()

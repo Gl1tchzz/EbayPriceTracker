@@ -1,50 +1,75 @@
-"""
-Stores application configuration.
-
-Responsible for:
-- Loading environment variables
-- Defining tracker settings
-- Validating required configuration
-"""
-
 import os
 from dotenv import load_dotenv
+from src.search_category import SearchCategory
 
 
 class Config:
-    """
-    Central location for application settings.
-    """
-
     def __init__(self):
         load_dotenv()
 
-        # API credentials
         self.ebay_client_id = os.getenv("EBAY_CLIENT_ID")
         self.ebay_client_secret = os.getenv("EBAY_CLIENT_SECRET")
+        self.discord_webhook_url = os.getenv("DISCORD_WEBHOOK_URL")
 
-        # Discord webhook URL
-        self.discord_webhook_url = os.getenv(
-            "DISCORD_WEBHOOK_URL"
-        )
-
-        # Search settings
-        self.search_query = "MacBook Pro M1 Pro"
-        self.max_price = 550
-
-        # How often eBay is checked
         self.check_every_seconds = 300
-
-        # Stores IDs of previously-seen listings
         self.seen_file = "seen_items.json"
+
+        self.banned_words = [
+            "case",
+            "cover",
+            "screen protector",
+            "keyboard",
+            "charger",
+            "box only",
+            "for parts",
+            "spares",
+            "repair",
+            "faulty",
+            "icloud",
+            "locked",
+        ]
+
+        self.search_categories = [
+            SearchCategory(
+                name="MacBook Pro M1 Pro",
+                query="MacBook Pro M1 Pro",
+                max_price=550,
+                required_words=["macbook", "pro", "m1"],
+                banned_words=self.banned_words,
+            ),
+            SearchCategory(
+                name="MacBook Pro M1 Max",
+                query="MacBook Pro M1 Max",
+                max_price=700,
+                required_words=["macbook", "pro", "m1", "max"],
+                banned_words=self.banned_words,
+            ),
+            SearchCategory(
+                name="MacBook Pro M2 Pro",
+                query="MacBook Pro M2 Pro",
+                max_price=850,
+                required_words=["macbook", "pro", "m2"],
+                banned_words=self.banned_words,
+            ),
+            SearchCategory(
+                name="MacBook Air M1",
+                query="MacBook Air M1",
+                max_price=400,
+                required_words=["macbook", "air", "m1"],
+                banned_words=self.banned_words,
+            ),
+            SearchCategory(
+                name="MacBook Air M2",
+                query="MacBook Air M2",
+                max_price=600,
+                required_words=["macbook", "air", "m2"],
+                banned_words=self.banned_words,
+            ),
+        ]
 
         self.validate()
 
     def validate(self):
-        """
-        Ensures all required settings exist before startup.
-        """
-
         if not self.ebay_client_id:
             raise ValueError("EBAY_CLIENT_ID missing")
 
