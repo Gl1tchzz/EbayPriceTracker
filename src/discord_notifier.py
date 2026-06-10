@@ -9,7 +9,6 @@ class DiscordNotifier:
     def send_listing(self, listing, category):
         specs = listing.specs
 
-        # --- Build base description ---
         description = (
             f"**Category:** {category.name}\n"
             f"**eBay Price:** £{listing.price}\n"
@@ -21,13 +20,14 @@ class DiscordNotifier:
             f"**Size:** {specs['screen_size']}"
         )
 
-        # --- Try to get musicmagpie resell prices ---
         mm_prices = None
+        poor_is_profitable = False
+
         try:
             ram_int = int(specs['ram'].replace("GB", "").strip())
             year_int = int(specs['year'])
             size_str = specs['screen_size'].replace('"', '').strip()
-            chip_str = specs['cpu']  # e.g. "M1 PRO" from SpecParser
+            chip_str = specs['cpu']
 
             mm_prices = get_musicmagpie_price(size_str, year_int, chip_str, ram_int)
         except Exception as e:
@@ -41,6 +41,10 @@ class DiscordNotifier:
             profit_good   = round(good   - listing.price, 2) if good   else None
             profit_poor   = round(poor   - listing.price, 2) if poor   else None
             profit_faulty = round(faulty - listing.price, 2) if faulty else None
+
+            # Check if poor condition trade-in is profitable
+            if profit_poor is not None and profit_poor > 0:
+                poor_is_profitable = True
 
             def fmt(val, profit):
                 if val is None:
@@ -61,15 +65,20 @@ class DiscordNotifier:
             "title": listing.title[:256],
             "url": listing.url,
             "description": description,
-            "color": 5814783,
+            "color": 16711680 if poor_is_profitable else 5814783,  # red if profitable, blue otherwise
             "footer": {"text": "eBay MacBook Tracker"},
         }
 
         if listing.image_url:
             embed["thumbnail"] = {"url": listing.image_url}
 
+        # Ping @everyone if poor condition trade-in is in profit
+        content = f"🚨 New {category.name} listing found!"
+        if poor_is_profitable:
+            content = f"@everyone 🔥 PROFITABLE FLIP — Poor condition is in profit! | {category.name}"
+
         payload = {
-            "content": f"🚨 New {category.name} listing found!",
+            "content": content,
             "embeds": [embed],
         }
 
