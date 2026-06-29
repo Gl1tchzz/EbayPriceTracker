@@ -5,15 +5,36 @@ import requests
 
 
 class EbayClient:
-    def __init__(self, client_id, client_secret):
-        self.client_id = client_id
-        self.client_secret = client_secret
+    def __init__(self, credentials):
+        self.credentials = credentials
+        self.current_index = 0
         self.token = None
         self.token_created_at = 0
 
+    @property
+    def current_credentials(self):
+        return self.credentials[self.current_index]
+
+    def rotate_credentials(self):
+        self.current_index = (self.current_index + 1) % len(self.credentials)
+        self.token = None
+        self.token_created_at = 0
+
+        print(
+            f"[eBay] Rotated API key. "
+            f"Now using key {self.current_index + 1}/{len(self.credentials)}"
+        )
+
     def get_access_token(self):
-        credentials = f"{self.client_id}:{self.client_secret}"
-        encoded = base64.b64encode(credentials.encode()).decode()
+        credentials = self.current_credentials
+
+        raw_credentials = (
+            f"{credentials['client_id']}:{credentials['client_secret']}"
+        )
+
+        encoded = base64.b64encode(
+            raw_credentials.encode()
+        ).decode()
 
         response = requests.post(
             "https://api.ebay.com/identity/v1/oauth2/token",
@@ -25,7 +46,14 @@ class EbayClient:
                 "grant_type": "client_credentials",
                 "scope": "https://api.ebay.com/oauth/api_scope",
             },
+            timeout=20,
         )
+
+        if response.status_code == 429:
+            raise requests.exceptions.HTTPError(
+                "429 while getting eBay token",
+                response=response,
+            )
 
         response.raise_for_status()
 
@@ -43,21 +71,41 @@ class EbayClient:
 
         return self.token
 
-    def search(self, query, max_price):
-        token = self.get_valid_token()
+    def request_with_rotation(self, params):
+        attempts = len(self.credentials)
 
-        all_items = []
-        offset = 0
-        page_size = 50
-        total = None
+        for attempt in range(attempts):
+            token = self.get_valid_token()
 
-        while True:
             response = requests.get(
                 "https://api.ebay.com/buy/browse/v1/item_summary/search",
                 headers={
                     "Authorization": f"Bearer {token}",
                     "X-EBAY-C-MARKETPLACE-ID": "EBAY_GB",
                 },
+                params=params,
+                timeout=20,
+            )
+
+            if response.status_code == 429:
+                print("[eBay] 429 Too Many Requests. Trying next API key...")
+                self.rotate_credentials()
+                continue
+
+            response.raise_for_status()
+            return response
+
+        print("[eBay] All API keys are currently rate limited.")
+        return None
+
+    def search(self, query, max_price):
+        all_items = []
+        offset = 0
+        page_size = 50
+        total = None
+
+        while True:
+            response = self.request_with_rotation(
                 params={
                     "q": query,
                     "category_ids": "111422",
@@ -69,10 +117,12 @@ class EbayClient:
                     "sort": "newlyListed",
                     "limit": page_size,
                     "offset": offset,
-                },
+                }
             )
 
-            response.raise_for_status()
+            if response is None:
+                break
+
             data = response.json()
 
             if total is None:
@@ -93,14 +143,7 @@ class EbayClient:
         return all_items
 
     def search_auctions_ending_soon(self, query, max_price):
-        token = self.get_valid_token()
-
-        response = requests.get(
-            "https://api.ebay.com/buy/browse/v1/item_summary/search",
-            headers={
-                "Authorization": f"Bearer {token}",
-                "X-EBAY-C-MARKETPLACE-ID": "EBAY_GB",
-            },
+        response = self.request_with_rotation(
             params={
                 "q": query,
                 "category_ids": "111422",
@@ -111,10 +154,11 @@ class EbayClient:
                 ),
                 "sort": "endingSoonest",
                 "limit": 50,
-            },
+            }
         )
 
-        response.raise_for_status()
-        data = response.json()
+        if response is None:
+            return []
 
+        data = response.json()
         return data.get("itemSummaries", [])

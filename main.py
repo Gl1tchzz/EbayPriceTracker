@@ -9,8 +9,7 @@ def main():
     config = Config()
 
     ebay_client = EbayClient(
-        client_id=config.ebay_client_id,
-        client_secret=config.ebay_client_secret,
+        credentials=config.ebay_credentials,
     )
 
     notifier = DiscordNotifier(
