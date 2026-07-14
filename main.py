@@ -13,8 +13,10 @@ def main():
     )
 
     notifier = DiscordNotifier(
-        webhook_url=config.discord_webhook_url,
-        auction_webhook_url=config.discord_auction_webhook_url,
+        macbook_webhook_url=config.discord_macbook_webhook_url,
+        macbook_auction_webhook_url=config.discord_macbook_auction_webhook_url,
+        ps5_webhook_url=config.discord_ps5_webhook_url,
+        ps5_auction_webhook_url=config.discord_ps5_auction_webhook_url,
     )
 
     seen_items_manager = SeenItemsManager(
